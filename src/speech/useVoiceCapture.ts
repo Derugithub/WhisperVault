@@ -4,11 +4,13 @@ import { Platform } from 'react-native';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import { deleteLocalFile, ensureRecordingsDirectory } from '../audio/files';
 import { getNotesRepository } from '../db/client';
-import { recognitionErrorMessage } from '../domain/errors';
+import { captureFailureMessage, recognitionErrorMessage, unavailableCaptureMessage } from '../domain/errors';
 import { createNoteId } from '../domain/ids';
 import { localeInstalled } from '../domain/languages';
 import { createTranscriptState, reduceTranscript, type TranscriptState } from '../domain/transcript';
-import { buildRecognitionOptions, volumeToLevel } from './options';
+import { requestBrowserMicrophone } from './browserMicrophone';
+import { readCaptureRoute } from './captureRoute';
+import { buildBrowserRecognitionOptions, buildRecognitionOptions, volumeToLevel } from './options';
 
 export type CapturePhase = 'idle' | 'listening' | 'saving' | 'needs-model' | 'blocked';
 
@@ -22,6 +24,7 @@ export function useVoiceCapture() {
   const [message, setMessage] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [canOpenSettings, setCanOpenSettings] = useState(false);
+  const [canStart, setCanStart] = useState(true);
 
   const transcriptState = useRef<TranscriptState>(createTranscriptState());
   const audioUri = useRef<string | null>(null);
@@ -139,7 +142,9 @@ export function useVoiceCapture() {
       return;
     }
     if (errorRef.current && mounted.current) {
-      setMessage(recognitionErrorMessage(errorRef.current.error));
+      const code = errorRef.current.error;
+      setMessage(captureFailureMessage(code, Platform.OS));
+      setCanOpenSettings(code === 'not-allowed' && (Platform.OS === 'ios' || Platform.OS === 'android'));
       setPhase('blocked');
       return;
     }
@@ -147,6 +152,25 @@ export function useVoiceCapture() {
       setPhase('idle');
     }
   });
+
+  const refreshAvailability = useCallback(() => {
+    if (phaseRef.current === 'listening' || phaseRef.current === 'saving') {
+      return;
+    }
+    const route = readCaptureRoute();
+    if (route === 'unavailable') {
+      setCanStart(false);
+      setMessage(unavailableCaptureMessage(Platform.OS));
+      setCanOpenSettings(Platform.OS === 'ios' || Platform.OS === 'android');
+      setPhase('blocked');
+      return;
+    }
+    setCanStart(true);
+  }, []);
+
+  useEffect(() => {
+    refreshAvailability();
+  }, [refreshAvailability]);
 
   const start = useCallback(async (lang: string) => {
     if (phaseRef.current === 'listening' || phaseRef.current === 'saving') {
@@ -162,23 +186,52 @@ export function useVoiceCapture() {
     setElapsedMs(0);
     setLevel(0);
 
-    if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
-      setMessage('Recording and on-device transcription run in the iOS and Android app.');
+    const route = readCaptureRoute();
+
+    if (route === 'unavailable') {
+      setCanStart(false);
+      setMessage(unavailableCaptureMessage(Platform.OS));
+      setCanOpenSettings(Platform.OS === 'ios' || Platform.OS === 'android');
       setPhase('blocked');
       return;
     }
 
-    try {
-      if (!ExpoSpeechRecognitionModule.isRecognitionAvailable()) {
-        setMessage('The system speech recognizer is turned off. Enable dictation or speech services, then try again.');
-        setPhase('blocked');
+    if (route === 'browser') {
+      setMessage('Allow the microphone to start recording.');
+      const mic = await requestBrowserMicrophone();
+      if (!mounted.current) {
         return;
       }
-      if (!ExpoSpeechRecognitionModule.supportsOnDeviceRecognition()) {
-        setMessage(
-          'This device does not have an on-device speech recognizer. WhisperVault will not use a cloud transcription service.',
-        );
+      if (mic === 'denied') {
         setPhase('blocked');
+        setMessage(captureFailureMessage('not-allowed', 'web'));
+        return;
+      }
+      if (mic === 'missing') {
+        setPhase('blocked');
+        setMessage('No microphone is available. Connect one and try again.');
+        return;
+      }
+      const id = createNoteId();
+      noteId.current = id;
+      startedAt.current = Date.now();
+      phaseRef.current = 'listening';
+      setMessage(null);
+      setPhase('listening');
+      try {
+        ExpoSpeechRecognitionModule.start(buildBrowserRecognitionOptions(lang));
+      } catch (error) {
+        phaseRef.current = 'blocked';
+        setPhase('blocked');
+        setMessage(error instanceof Error ? error.message : 'The microphone could not be started.');
+      }
+      return;
+    }
+
+    try {
+      if (route === 'needs-model') {
+        setPhase('needs-model');
+        setMessage('Download the offline speech model for this language, then record again.');
         return;
       }
 
@@ -187,7 +240,7 @@ export function useVoiceCapture() {
           const supported = await ExpoSpeechRecognitionModule.getSupportedLocales({});
           if (!localeInstalled(supported.installedLocales, lang)) {
             setPhase('needs-model');
-            setMessage('Download the offline speech model for this language. Recognition stays on the device.');
+            setMessage('Download the offline speech model for this language, then record again.');
             return;
           }
         } catch {
@@ -226,15 +279,13 @@ export function useVoiceCapture() {
         ? `${options.recordingOptions.outputDirectory}${options.recordingOptions.outputFileName}`
         : null;
 
+      phaseRef.current = 'listening';
       setPhase('listening');
       ExpoSpeechRecognitionModule.start(options);
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : 'Could not start the on-device speech recognizer. Use a WhisperVault development build on iOS or Android.',
-      );
+      phaseRef.current = 'blocked';
+      setMessage(error instanceof Error ? error.message : 'The microphone could not be started.');
       setPhase('blocked');
     }
   }, []);
@@ -267,6 +318,8 @@ export function useVoiceCapture() {
     message,
     savedId,
     canOpenSettings,
+    canStart,
+    refreshAvailability,
     start,
     stop,
     discard,

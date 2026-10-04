@@ -21,6 +21,20 @@ export type RecognitionStartOptions = {
   androidRecognitionServicePackage?: 'com.google.android.as';
 };
 
+export type BrowserRecognitionOptions = {
+  lang: string;
+  interimResults: true;
+  continuous: true;
+};
+
+export function buildBrowserRecognitionOptions(lang: string): BrowserRecognitionOptions {
+  return {
+    lang,
+    interimResults: true,
+    continuous: true,
+  };
+}
+
 export function buildRecognitionOptions(input: {
   lang: string;
   noteId: string;

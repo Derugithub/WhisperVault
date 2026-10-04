@@ -1,3 +1,23 @@
+export function unavailableCaptureMessage(platform: string): string {
+  if (platform === 'web') {
+    return 'This browser cannot take a voice note. Use WhisperVault on iPhone or Android.';
+  }
+  return 'Dictation is turned off. Turn it on in system settings, then try again.';
+}
+
+export function captureFailureMessage(code: string, platform: string): string {
+  if (code === 'not-allowed') {
+    if (platform === 'web') {
+      return 'Microphone access is blocked. Allow the microphone for this site in the browser, then try again.';
+    }
+    return 'Microphone access is off. Enable it in system settings to record.';
+  }
+  if (platform === 'web' && (code === 'network' || code === 'service-not-allowed')) {
+    return 'This browser could not transcribe just now. Check the connection and try again.';
+  }
+  return recognitionErrorMessage(code);
+}
+
 export function recognitionErrorMessage(code: string): string {
   switch (code) {
     case 'not-allowed':

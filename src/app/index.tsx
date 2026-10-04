@@ -77,7 +77,8 @@ export default function LibraryScreen() {
       <FlatList
         data={notes}
         keyExtractor={(note) => note.id}
-        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 128 }]}
+        style={styles.listView}
+        contentContainerStyle={styles.list}
         refreshing={loading && notes.length > 0}
         onRefresh={() => void load(query)}
         ListHeaderComponent={
@@ -229,14 +230,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 23,
   },
+  listView: {
+    flex: 1,
+  },
   dock: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
+    zIndex: 2,
+    elevation: 8,
     paddingTop: space.md,
     paddingHorizontal: space.xl,
-    backgroundColor: 'rgba(9, 10, 14, 0.94)',
+    backgroundColor: colors.bg,
     borderTopWidth: 1,
     borderTopColor: colors.line,
   },

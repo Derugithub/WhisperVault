@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { buildRecognitionOptions, volumeToLevel } from './options.ts';
+import { buildBrowserRecognitionOptions, buildRecognitionOptions, volumeToLevel } from './options.ts';
 
 describe('buildRecognitionOptions', () => {
   it('always requests on-device recognition', () => {
@@ -30,6 +30,16 @@ describe('buildRecognitionOptions', () => {
     assert.equal(options.recordingOptions, undefined);
     assert.equal(options.androidRecognitionServicePackage, undefined);
     assert.equal(options.requiresOnDeviceRecognition, true);
+  });
+});
+
+describe('buildBrowserRecognitionOptions', () => {
+  it('starts browser recognition without an on-device flag', () => {
+    const options = buildBrowserRecognitionOptions('es-ES');
+    assert.equal(options.lang, 'es-ES');
+    assert.equal(options.interimResults, true);
+    assert.equal(options.continuous, true);
+    assert.equal('requiresOnDeviceRecognition' in options, false);
   });
 });
 

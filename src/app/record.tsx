@@ -1,13 +1,13 @@
-import { getLocales } from 'expo-localization';
-import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LanguagePicker } from '../components/LanguagePicker';
 import { Screen } from '../components/Screen';
-import { getNotesRepository } from '../db/client';
 import { formatElapsed } from '../domain/format';
-import { RECOGNITION_LANGUAGE_KEY, languageLabel, resolveRecognitionLanguage } from '../domain/languages';
+import { languageLabel } from '../domain/languages';
 import { downloadOfflineModel } from '../speech/offlineModel';
+import { readRecognitionLanguage, writeRecognitionLanguage } from '../speech/languageSetting';
 import { useVoiceCapture } from '../speech/useVoiceCapture';
 import { colors, fonts, space } from '../theme';
 
@@ -16,29 +16,32 @@ export default function RecordScreen() {
   const insets = useSafeAreaInsets();
   const capture = useVoiceCapture();
   const [lang, setLang] = useState('en-US');
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [modelMessage, setModelMessage] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const left = useRef(false);
   const closing = useRef(false);
+  const langTicket = useRef(0);
 
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      try {
-        const repository = await getNotesRepository();
-        const stored = await repository.getSetting(RECOGNITION_LANGUAGE_KEY);
-        const device = getLocales()[0]?.languageTag ?? null;
-        if (active) {
-          setLang(resolveRecognitionLanguage(device, stored));
-        }
-      } catch {
-        // English (US) remains the default if the database is not ready yet.
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      const ticket = langTicket.current;
+      void readRecognitionLanguage()
+        .then((next) => {
+          if (active && ticket === langTicket.current) {
+            setLang(next);
+          }
+        })
+        .catch(() => {
+          // English (US) remains the default if the database is not ready yet.
+        });
+      capture.refreshAvailability();
+      return () => {
+        active = false;
+      };
+    }, [capture.refreshAvailability]),
+  );
 
   useEffect(() => {
     if (!capture.savedId || left.current) {
@@ -79,6 +82,17 @@ export default function RecordScreen() {
     router.back();
   }
 
+  async function chooseLanguage(tag: string) {
+    langTicket.current += 1;
+    setLang(tag);
+    setPickerOpen(false);
+    try {
+      await writeRecognitionLanguage(tag);
+    } catch (error) {
+      setModelMessage(error instanceof Error ? error.message : 'The language could not be saved.');
+    }
+  }
+
   async function downloadModel() {
     setDownloading(true);
     try {
@@ -92,7 +106,22 @@ export default function RecordScreen() {
 
   const listening = capture.phase === 'listening';
   const saving = capture.phase === 'saving';
+  const showRecord = capture.canStart || listening || saving;
   const bars = [0.35, 0.55, 0.9, 0.62, 0.4];
+  const status = listening
+    ? 'Listening'
+    : saving
+      ? 'Saving'
+      : capture.phase === 'needs-model'
+        ? 'Offline model'
+        : capture.phase === 'blocked'
+          ? 'Action needed'
+          : 'Ready';
+  const placeholder = listening
+    ? 'Speak when you are ready.'
+    : capture.message
+      ? capture.message
+      : 'Tap record and speak. The transcript appears here.';
 
   return (
     <Screen>
@@ -100,26 +129,32 @@ export default function RecordScreen() {
         <Pressable onPress={leave} accessibilityRole="button" accessibilityLabel="Cancel recording" hitSlop={8}>
           <Text style={styles.cancel}>{saving ? '' : 'Cancel'}</Text>
         </Pressable>
-        <Text style={styles.lang}>{languageLabel(lang)}</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Change recognition language, ${languageLabel(lang)}`}
+          disabled={listening || saving}
+          onPress={() => setPickerOpen(true)}
+          hitSlop={8}
+          style={({ pressed }) => [styles.langButton, (listening || saving) && styles.disabled, pressed && styles.pressed]}
+        >
+          <Text style={styles.lang}>{languageLabel(lang)}</Text>
+        </Pressable>
         <View style={styles.topSpacer} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.transcriptWrap} keyboardShouldPersistTaps="handled">
-        <Text style={styles.status}>
-          {listening ? 'Listening on this device' : saving ? 'Saving' : 'Ready'}
-        </Text>
+      <ScrollView style={styles.transcriptScroll} contentContainerStyle={styles.transcriptWrap} keyboardShouldPersistTaps="handled">
+        <Text style={styles.status}>{status}</Text>
         <Text style={[styles.transcript, !capture.transcript && styles.placeholder]}>
-          {capture.transcript || (listening ? 'Speak when you are ready.' : 'Tap record and speak. The transcript appears here.')}
+          {capture.transcript || placeholder}
         </Text>
       </ScrollView>
 
-      {capture.message ? <Text style={styles.message}>{capture.message}</Text> : null}
       {modelMessage ? <Text style={styles.message}>{modelMessage}</Text> : null}
 
       <View style={[styles.controls, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         <Text style={styles.timer}>{formatElapsed(capture.elapsedMs)}</Text>
         <View style={styles.meter} accessibilityElementsHidden>
-          {bars.map((height, index) => (
+          {bars.map((height) => (
             <View
               key={height}
               style={[
@@ -154,38 +189,52 @@ export default function RecordScreen() {
           </Pressable>
         ) : null}
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={listening ? 'Stop and save note' : 'Start recording'}
-          disabled={saving}
-          onPress={() => {
-            if (listening) {
-              capture.stop();
-              return;
-            }
-            void capture.start(lang);
-          }}
-          style={({ pressed }) => [
-            styles.record,
-            listening && styles.recordLive,
-            pressed && styles.pressed,
-            saving && styles.disabled,
-          ]}
-        >
-          <View style={[styles.recordMark, listening && styles.recordMarkStop]} />
-        </Pressable>
-        <Text style={styles.hint}>
-          {listening
-            ? 'Stop to keep the transcript in the local journal.'
-            : 'Transcription uses the operating system speech recognizer. Audio is not sent to a cloud service.'}
-        </Text>
+        {showRecord ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={listening ? 'Stop and save note' : 'Start recording'}
+            disabled={saving}
+            onPress={() => {
+              if (listening) {
+                capture.stop();
+                return;
+              }
+              void capture.start(lang);
+            }}
+            style={({ pressed }) => [
+              styles.record,
+              listening && styles.recordLive,
+              pressed && styles.pressed,
+              saving && styles.disabled,
+            ]}
+          >
+            <View style={[styles.recordMark, listening && styles.recordMarkStop]} />
+          </Pressable>
+        ) : null}
+        {showRecord ? (
+          <Text style={styles.hint}>
+            {listening
+              ? 'Stop to keep the transcript in the local journal.'
+              : Platform.OS === 'web'
+                ? 'Stop to keep the transcript in this browser.'
+                : 'Transcription uses the speech recognizer on this phone. The note stays on this device.'}
+          </Text>
+        ) : null}
       </View>
+
+      <LanguagePicker
+        visible={pickerOpen}
+        selected={lang}
+        onClose={() => setPickerOpen(false)}
+        onSelect={(tag) => void chooseLanguage(tag)}
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   top: {
+    zIndex: 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -198,14 +247,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     minWidth: 72,
   },
+  langButton: {
+    minHeight: 36,
+    paddingHorizontal: space.md,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+    backgroundColor: colors.bgElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   lang: {
-    color: colors.textMuted,
+    color: colors.brass,
     fontFamily: fonts.bodyMedium,
     fontSize: 13,
     letterSpacing: 0.4,
   },
   topSpacer: {
     minWidth: 72,
+  },
+  transcriptScroll: {
+    flex: 1,
   },
   transcriptWrap: {
     flexGrow: 1,
@@ -242,10 +304,12 @@ const styles = StyleSheet.create({
     marginBottom: space.md,
   },
   controls: {
+    zIndex: 2,
     alignItems: 'center',
     gap: space.md,
     paddingHorizontal: space.xl,
     paddingTop: space.md,
+    backgroundColor: colors.bg,
   },
   timer: {
     color: colors.text,

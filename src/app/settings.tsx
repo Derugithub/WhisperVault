@@ -1,32 +1,37 @@
-import { getLocales } from 'expo-localization';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Header } from '../components/Header';
+import { LanguagePicker } from '../components/LanguagePicker';
 import { Screen } from '../components/Screen';
 import { deleteLocalFile } from '../audio/files';
 import { getNotesRepository } from '../db/client';
-import {
-  RECOGNITION_LANGUAGE_KEY,
-  RECOGNITION_LANGUAGES,
-  resolveRecognitionLanguage,
-} from '../domain/languages';
+import { languageLabel } from '../domain/languages';
 import { downloadOfflineModel } from '../speech/offlineModel';
+import { readRecognitionLanguage, writeRecognitionLanguage } from '../speech/languageSetting';
 import { colors, fonts, space } from '../theme';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const [lang, setLang] = useState('en-US');
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [noteCount, setNoteCount] = useState(0);
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const langTicket = useRef(0);
 
   const refresh = useCallback(async () => {
+    const ticket = langTicket.current;
     const repository = await getNotesRepository();
-    const stored = await repository.getSetting(RECOGNITION_LANGUAGE_KEY);
-    const device = getLocales()[0]?.languageTag ?? null;
-    setLang(resolveRecognitionLanguage(device, stored));
+    const next = await readRecognitionLanguage();
+    if (ticket !== langTicket.current) {
+      return;
+    }
+    setLang(next);
     const notes = await repository.listNotes('');
+    if (ticket !== langTicket.current) {
+      return;
+    }
     setNoteCount(notes.length);
   }, []);
 
@@ -45,9 +50,15 @@ export default function SettingsScreen() {
   );
 
   async function chooseLanguage(tag: string) {
+    langTicket.current += 1;
     setLang(tag);
-    const repository = await getNotesRepository();
-    await repository.setSetting(RECOGNITION_LANGUAGE_KEY, tag);
+    setPickerOpen(false);
+    try {
+      await writeRecognitionLanguage(tag);
+      setStatus(null);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'The language could not be saved.');
+    }
   }
 
   async function downloadModel() {
@@ -87,36 +98,35 @@ export default function SettingsScreen() {
       <Header title="Settings" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.section}>Recognition language</Text>
-        <View style={styles.group}>
-          {RECOGNITION_LANGUAGES.map((language, index) => {
-            const selected = language.tag === lang;
-            const last = index === RECOGNITION_LANGUAGES.length - 1;
-            return (
-              <Pressable
-                key={language.tag}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                onPress={() => void chooseLanguage(language.tag)}
-                style={({ pressed }) => [styles.row, last && styles.rowLast, pressed && styles.rowPressed]}
-              >
-                <Text style={styles.rowLabel}>{language.label}</Text>
-                <Text style={styles.rowValue}>{selected ? 'On' : ''}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Change recognition language, ${languageLabel(lang)}`}
+          onPress={() => setPickerOpen(true)}
+          style={({ pressed }) => [styles.selector, pressed && styles.rowPressed]}
+        >
+          <Text style={styles.rowLabel}>{languageLabel(lang)}</Text>
+          <Text style={styles.rowValue}>Change</Text>
+        </Pressable>
 
         <Text style={styles.section}>On this device</Text>
         <View style={styles.card}>
           <Text style={styles.body}>
             Notes, transcripts, and recordings stay in this app’s local database and files. There is no account and no sync.
           </Text>
-          <Text style={styles.body}>
-            Transcription uses the operating system’s on-device speech recognizer. WhisperVault does not upload recordings to a cloud speech service.
-          </Text>
-          <Text style={styles.body}>
-            On Android, the system may need an offline speech model the first time you use a language. That download is the language pack, not your note.
-          </Text>
+          {Platform.OS === 'web' ? (
+            <Text style={styles.body}>
+              In this browser, transcription uses the browser’s speech recognition. Notes you save stay in local storage on this device.
+            </Text>
+          ) : (
+            <Text style={styles.body}>
+              Transcription uses the operating system’s on-device speech recognizer. WhisperVault does not upload recordings to a cloud speech service.
+            </Text>
+          )}
+          {Platform.OS === 'android' ? (
+            <Text style={styles.body}>
+              On Android, the system may need an offline speech model the first time you use a language. That download is the language pack, not your note.
+            </Text>
+          ) : null}
           <Text style={styles.meta}>
             {noteCount === 1 ? '1 note stored here' : `${noteCount} notes stored here`}
           </Text>
@@ -143,6 +153,12 @@ export default function SettingsScreen() {
           <Text style={styles.dangerLabel}>Delete all notes</Text>
         </Pressable>
       </ScrollView>
+      <LanguagePicker
+        visible={pickerOpen}
+        selected={lang}
+        onClose={() => setPickerOpen(false)}
+        onSelect={(tag) => void chooseLanguage(tag)}
+      />
     </Screen>
   );
 }
@@ -161,24 +177,16 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginTop: space.md,
   },
-  group: {
-    borderRadius: 18,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.card,
-  },
-  row: {
+  selector: {
     minHeight: 52,
     paddingHorizontal: space.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
-  },
-  rowLast: {
-    borderBottomWidth: 0,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
   },
   rowPressed: {
     backgroundColor: colors.cardPressed,
