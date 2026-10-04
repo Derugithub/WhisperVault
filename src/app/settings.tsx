@@ -1,0 +1,248 @@
+import { getLocales } from 'expo-localization';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Header } from '../components/Header';
+import { Screen } from '../components/Screen';
+import { deleteLocalFile } from '../audio/files';
+import { getNotesRepository } from '../db/client';
+import {
+  RECOGNITION_LANGUAGE_KEY,
+  RECOGNITION_LANGUAGES,
+  resolveRecognitionLanguage,
+} from '../domain/languages';
+import { downloadOfflineModel } from '../speech/offlineModel';
+import { colors, fonts, space } from '../theme';
+
+export default function SettingsScreen() {
+  const router = useRouter();
+  const [lang, setLang] = useState('en-US');
+  const [noteCount, setNoteCount] = useState(0);
+  const [status, setStatus] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const refresh = useCallback(async () => {
+    const repository = await getNotesRepository();
+    const stored = await repository.getSetting(RECOGNITION_LANGUAGE_KEY);
+    const device = getLocales()[0]?.languageTag ?? null;
+    setLang(resolveRecognitionLanguage(device, stored));
+    const notes = await repository.listNotes('');
+    setNoteCount(notes.length);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      void refresh().catch((error: unknown) => {
+        if (active) {
+          setStatus(error instanceof Error ? error.message : 'Could not read settings.');
+        }
+      });
+      return () => {
+        active = false;
+      };
+    }, [refresh]),
+  );
+
+  async function chooseLanguage(tag: string) {
+    setLang(tag);
+    const repository = await getNotesRepository();
+    await repository.setSetting(RECOGNITION_LANGUAGE_KEY, tag);
+  }
+
+  async function downloadModel() {
+    setBusy(true);
+    try {
+      setStatus(await downloadOfflineModel(lang));
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'The offline model could not be downloaded.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function confirmDeleteAll() {
+    Alert.alert('Delete every note?', 'Transcripts and recordings stored on this device will be removed.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete all',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            const repository = await getNotesRepository();
+            const notes = await repository.deleteAllNotes();
+            for (const note of notes) {
+              deleteLocalFile(note.audioUri);
+            }
+            setNoteCount(0);
+            setStatus('The local journal is empty.');
+          })();
+        },
+      },
+    ]);
+  }
+
+  return (
+    <Screen>
+      <Header title="Settings" onBack={() => router.back()} />
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.section}>Recognition language</Text>
+        <View style={styles.group}>
+          {RECOGNITION_LANGUAGES.map((language, index) => {
+            const selected = language.tag === lang;
+            const last = index === RECOGNITION_LANGUAGES.length - 1;
+            return (
+              <Pressable
+                key={language.tag}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => void chooseLanguage(language.tag)}
+                style={({ pressed }) => [styles.row, last && styles.rowLast, pressed && styles.rowPressed]}
+              >
+                <Text style={styles.rowLabel}>{language.label}</Text>
+                <Text style={styles.rowValue}>{selected ? 'On' : ''}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Text style={styles.section}>On this device</Text>
+        <View style={styles.card}>
+          <Text style={styles.body}>
+            Notes, transcripts, and recordings stay in this app’s local database and files. There is no account and no sync.
+          </Text>
+          <Text style={styles.body}>
+            Transcription uses the operating system’s on-device speech recognizer. WhisperVault does not upload recordings to a cloud speech service.
+          </Text>
+          <Text style={styles.body}>
+            On Android, the system may need an offline speech model the first time you use a language. That download is the language pack, not your note.
+          </Text>
+          <Text style={styles.meta}>
+            {noteCount === 1 ? '1 note stored here' : `${noteCount} notes stored here`}
+          </Text>
+        </View>
+
+        {Platform.OS === 'android' ? (
+          <Pressable
+            accessibilityRole="button"
+            disabled={busy}
+            onPress={() => void downloadModel()}
+            style={({ pressed }) => [styles.button, pressed && styles.rowPressed]}
+          >
+            <Text style={styles.buttonLabel}>{busy ? 'Opening download' : 'Download offline speech model'}</Text>
+          </Pressable>
+        ) : null}
+
+        {status ? <Text style={styles.status}>{status}</Text> : null}
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={confirmDeleteAll}
+          style={({ pressed }) => [styles.danger, pressed && styles.rowPressed]}
+        >
+          <Text style={styles.dangerLabel}>Delete all notes</Text>
+        </Pressable>
+      </ScrollView>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  content: {
+    paddingHorizontal: space.xl,
+    paddingBottom: 48,
+    gap: space.md,
+  },
+  section: {
+    color: colors.brass,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginTop: space.md,
+  },
+  group: {
+    borderRadius: 18,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.card,
+  },
+  row: {
+    minHeight: 52,
+    paddingHorizontal: space.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  rowLast: {
+    borderBottomWidth: 0,
+  },
+  rowPressed: {
+    backgroundColor: colors.cardPressed,
+  },
+  rowLabel: {
+    color: colors.text,
+    fontFamily: fonts.body,
+    fontSize: 16,
+  },
+  rowValue: {
+    color: colors.brass,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 14,
+  },
+  card: {
+    gap: space.md,
+    padding: space.lg,
+    borderRadius: 18,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  body: {
+    color: colors.textSecondary,
+    fontFamily: fonts.body,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  meta: {
+    color: colors.textMuted,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+  },
+  button: {
+    minHeight: 52,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: space.lg,
+  },
+  buttonLabel: {
+    color: colors.text,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 16,
+  },
+  status: {
+    color: colors.textSecondary,
+    fontFamily: fonts.body,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  danger: {
+    minHeight: 52,
+    borderRadius: 16,
+    backgroundColor: colors.dangerSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: space.lg,
+  },
+  dangerLabel: {
+    color: colors.danger,
+    fontFamily: fonts.bodySemibold,
+    fontSize: 16,
+  },
+});
