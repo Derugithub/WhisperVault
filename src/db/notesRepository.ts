@@ -1,7 +1,6 @@
 import type { Note, NoteRow, SqlExecutor } from './types';
 
 const SCHEMA = `
-PRAGMA journal_mode = WAL;
 PRAGMA busy_timeout = 3000;
 CREATE TABLE IF NOT EXISTS notes (
   id TEXT PRIMARY KEY NOT NULL,
@@ -34,8 +33,8 @@ export function likePattern(query: string): string {
 
 export function createNotesRepository(db: SqlExecutor) {
   return {
-    async migrate(): Promise<void> {
-      await db.exec(SCHEMA);
+    async migrate(journalMode: 'WAL' | 'DELETE' = 'WAL'): Promise<void> {
+      await db.exec(`PRAGMA journal_mode = ${journalMode};\n${SCHEMA}`);
     },
 
     async saveNote(note: Note): Promise<void> {

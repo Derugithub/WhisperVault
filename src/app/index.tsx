@@ -13,6 +13,7 @@ import { NoteCard } from '../components/NoteCard';
 import { Screen } from '../components/Screen';
 import { SearchField } from '../components/SearchField';
 import { getNotesRepository } from '../db/client';
+import { localDatabaseMessage } from '../db/messages';
 import type { Note } from '../db/types';
 import { colors, fonts, space } from '../theme';
 
@@ -31,7 +32,7 @@ export default function LibraryScreen() {
       setNotes(rows);
       setError(null);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Could not open the local journal.');
+      setError(localDatabaseMessage(loadError));
     } finally {
       setLoading(false);
     }
@@ -50,7 +51,7 @@ export default function LibraryScreen() {
           }
         } catch (loadError) {
           if (active) {
-            setError(loadError instanceof Error ? loadError.message : 'Could not open the local journal.');
+            setError(localDatabaseMessage(loadError));
           }
         } finally {
           if (active) {

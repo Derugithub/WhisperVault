@@ -4,6 +4,7 @@ import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LanguagePicker } from '../components/LanguagePicker';
 import { Screen } from '../components/Screen';
+import { localDatabaseMessage } from '../db/messages';
 import { formatElapsed } from '../domain/format';
 import { languageLabel } from '../domain/languages';
 import { downloadOfflineModel } from '../speech/offlineModel';
@@ -89,7 +90,7 @@ export default function RecordScreen() {
     try {
       await writeRecognitionLanguage(tag);
     } catch (error) {
-      setModelMessage(error instanceof Error ? error.message : 'The language could not be saved.');
+      setModelMessage(localDatabaseMessage(error));
     }
   }
 

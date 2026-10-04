@@ -6,6 +6,7 @@ import { LanguagePicker } from '../components/LanguagePicker';
 import { Screen } from '../components/Screen';
 import { deleteLocalFile } from '../audio/files';
 import { getNotesRepository } from '../db/client';
+import { localDatabaseMessage } from '../db/messages';
 import { languageLabel } from '../domain/languages';
 import { downloadOfflineModel } from '../speech/offlineModel';
 import { readRecognitionLanguage, writeRecognitionLanguage } from '../speech/languageSetting';
@@ -40,7 +41,7 @@ export default function SettingsScreen() {
       let active = true;
       void refresh().catch((error: unknown) => {
         if (active) {
-          setStatus(error instanceof Error ? error.message : 'Could not read settings.');
+          setStatus(localDatabaseMessage(error));
         }
       });
       return () => {
@@ -57,7 +58,7 @@ export default function SettingsScreen() {
       await writeRecognitionLanguage(tag);
       setStatus(null);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'The language could not be saved.');
+      setStatus(localDatabaseMessage(error));
     }
   }
 
