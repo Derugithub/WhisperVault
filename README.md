@@ -141,6 +141,4 @@ No contributing guide is in the repository.
 
 ## License
 
-No `LICENSE` file is in the repository.
-
-[TODO: add license]
+WhisperVault is licensed under the MIT License. See [LICENSE](LICENSE).
