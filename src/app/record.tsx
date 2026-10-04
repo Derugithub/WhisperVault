@@ -134,7 +134,6 @@ export default function RecordScreen() {
           accessibilityLabel={`Change recognition language, ${languageLabel(lang)}`}
           disabled={listening || saving}
           onPress={() => setPickerOpen(true)}
-          hitSlop={8}
           style={({ pressed }) => [styles.langButton, (listening || saving) && styles.disabled, pressed && styles.pressed]}
         >
           <Text style={styles.lang}>{languageLabel(lang)}</Text>
@@ -238,8 +237,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: space.xl,
-    minHeight: 44,
+    paddingHorizontal: space.lg,
+    minHeight: 56,
   },
   cancel: {
     color: colors.brass,
@@ -248,7 +247,9 @@ const styles = StyleSheet.create({
     minWidth: 72,
   },
   langButton: {
-    minHeight: 36,
+    flex: 1,
+    minHeight: 44,
+    marginHorizontal: space.sm,
     paddingHorizontal: space.md,
     borderRadius: 999,
     borderWidth: 1,
