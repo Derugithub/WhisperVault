@@ -15,6 +15,7 @@ import { SearchField } from '../components/SearchField';
 import { getNotesRepository } from '../db/client';
 import { localDatabaseMessage } from '../db/messages';
 import type { Note } from '../db/types';
+import { noteCountLabel } from '../domain/format';
 import { colors, fonts, space } from '../theme';
 
 export default function LibraryScreen() {
@@ -69,9 +70,7 @@ export default function LibraryScreen() {
     ? notes.length === 1
       ? '1 match'
       : `${notes.length} matches`
-    : notes.length === 1
-      ? '1 note on this device'
-      : `${notes.length} notes on this device`;
+    : noteCountLabel(notes.length);
 
   return (
     <Screen>
