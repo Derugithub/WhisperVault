@@ -4,11 +4,13 @@ import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from '
 import { Header } from '../components/Header';
 import { LanguagePicker } from '../components/LanguagePicker';
 import { Screen } from '../components/Screen';
+import { useClearingNotice } from '../components/useClearingNotice';
 import { deleteLocalFile } from '../audio/files';
 import { getNotesRepository } from '../db/client';
 import { localDatabaseMessage } from '../db/messages';
 import { languageLabel } from '../domain/languages';
-import { isSpeechRecognitionInstalled } from '../speech/nativeModule';
+import { FAILED_DOWNLOAD_MESSAGE, shouldShowOfflineModelDownload } from '../speech/downloadNotice';
+import { offlineModelDownloadSupported } from '../speech/nativeModule';
 import { downloadOfflineModel } from '../speech/offlineModel';
 import { readRecognitionLanguage, writeRecognitionLanguage } from '../speech/languageSetting';
 import { colors, fonts, space } from '../theme';
@@ -18,10 +20,10 @@ export default function SettingsScreen() {
   const [lang, setLang] = useState('en-US');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [noteCount, setNoteCount] = useState(0);
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useClearingNotice();
   const [busy, setBusy] = useState(false);
   const langTicket = useRef(0);
-  const speechInstalled = isSpeechRecognitionInstalled();
+  const showOfflineDownload = shouldShowOfflineModelDownload(Platform.OS, offlineModelDownloadSupported());
 
   const refresh = useCallback(async () => {
     const ticket = langTicket.current;
@@ -68,8 +70,8 @@ export default function SettingsScreen() {
     setBusy(true);
     try {
       setStatus(await downloadOfflineModel(lang));
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'The offline model could not be downloaded.');
+    } catch {
+      setStatus(FAILED_DOWNLOAD_MESSAGE);
     } finally {
       setBusy(false);
     }
@@ -125,7 +127,7 @@ export default function SettingsScreen() {
               Transcription uses the operating system’s on-device speech recognizer. WhisperVault does not upload recordings to a cloud speech service.
             </Text>
           )}
-          {Platform.OS === 'android' && speechInstalled ? (
+          {showOfflineDownload ? (
             <Text style={styles.body}>
               On Android, the system may need an offline speech model the first time you use a language. That download is the language pack, not your note.
             </Text>
@@ -135,7 +137,7 @@ export default function SettingsScreen() {
           </Text>
         </View>
 
-        {Platform.OS === 'android' && speechInstalled ? (
+        {showOfflineDownload ? (
           <Pressable
             accessibilityRole="button"
             disabled={busy}

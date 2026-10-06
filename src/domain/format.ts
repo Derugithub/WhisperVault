@@ -17,6 +17,10 @@ function sameDay(left: Date, right: Date): boolean {
   );
 }
 
+export function noteCountLabel(count: number): string {
+  return count === 1 ? '1 note' : `${count} notes`;
+}
+
 export function formatElapsed(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
   const minutes = Math.floor(total / 60);

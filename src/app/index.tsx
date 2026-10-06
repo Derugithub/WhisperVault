@@ -15,6 +15,7 @@ import { SearchField } from '../components/SearchField';
 import { getNotesRepository } from '../db/client';
 import { localDatabaseMessage } from '../db/messages';
 import type { Note } from '../db/types';
+import { noteCountLabel } from '../domain/format';
 import { colors, fonts, space } from '../theme';
 
 export default function LibraryScreen() {
@@ -69,9 +70,7 @@ export default function LibraryScreen() {
     ? notes.length === 1
       ? '1 match'
       : `${notes.length} matches`
-    : notes.length === 1
-      ? '1 note on this device'
-      : `${notes.length} notes on this device`;
+    : noteCountLabel(notes.length);
 
   return (
     <Screen>
@@ -84,11 +83,8 @@ export default function LibraryScreen() {
         onRefresh={() => void load(query)}
         ListHeaderComponent={
           <View style={styles.header}>
-            <View style={styles.titleRow}>
-              <View style={styles.titleCopy}>
-                <Text style={styles.kicker}>Private journal</Text>
-                <Text style={styles.title}>WhisperVault</Text>
-              </View>
+            <View style={styles.nav}>
+              <Text style={styles.kicker}>Private journal</Text>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Settings"
@@ -98,6 +94,9 @@ export default function LibraryScreen() {
                 <Text style={styles.settingsGlyph}>···</Text>
               </Pressable>
             </View>
+            <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+              WhisperVault
+            </Text>
             <Text style={styles.subtitle}>Voice notes transcribed on this phone. Nothing is uploaded.</Text>
             <SearchField value={query} onChangeText={setQuery} />
             <Text style={styles.count}>{loading && notes.length === 0 ? 'Opening journal' : countLabel}</Text>
@@ -150,15 +149,12 @@ const styles = StyleSheet.create({
     paddingTop: space.lg,
     paddingBottom: space.lg,
   },
-  titleRow: {
+  nav: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    gap: space.lg,
-  },
-  titleCopy: {
-    flex: 1,
-    gap: 2,
+    minHeight: 44,
+    gap: space.md,
   },
   kicker: {
     color: colors.brass,
@@ -172,8 +168,10 @@ const styles = StyleSheet.create({
     fontFamily: fonts.display,
     fontSize: 40,
     lineHeight: 46,
+    width: '100%',
   },
   settings: {
+    flexShrink: 0,
     width: 44,
     height: 44,
     borderRadius: 22,

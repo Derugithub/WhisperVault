@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { formatElapsed, formatNoteFull, formatNoteWhen } from './format.ts';
+import { formatElapsed, formatNoteFull, formatNoteWhen, noteCountLabel } from './format.ts';
+
+describe('noteCountLabel', () => {
+  it('counts notes without a device phrase', () => {
+    assert.equal(noteCountLabel(0), '0 notes');
+    assert.equal(noteCountLabel(1), '1 note');
+    assert.equal(noteCountLabel(2), '2 notes');
+    assert.doesNotMatch(noteCountLabel(0), /on this device/);
+    assert.doesNotMatch(noteCountLabel(1), /on this device/);
+  });
+});
 
 describe('formatElapsed', () => {
   it('formats minutes and seconds', () => {
