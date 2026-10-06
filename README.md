@@ -8,8 +8,6 @@ The app targets a person who wants voice notes and transcripts that stay on the 
 
 Repository: https://github.com/Derugithub/WhisperVault
 
-The current implementation is on branch `cursor/whispervault-first-cut-7034` (pull request https://github.com/Derugithub/WhisperVault/pull/1). `main` does not yet contain this app.
-
 ## Features
 
 - Record a voice note and show a live transcript.
@@ -35,7 +33,7 @@ Each note row has:
 ## Requirements
 
 - npm, as used by the install and script commands in `package.json`.
-- Expo SDK `~57.0.26` (`expo` in `package.json`).
+- Expo SDK `~57.0.27` (`expo` in `package.json`).
 - Expo Go for the note list, search, and settings. Recording on iOS or Android needs a development build from the Installation commands.
 - iOS and Android targets declared in `app.json`: bundle identifier and Android package `com.whispervault.app`.
 - Assumption: `npx expo run:ios` needs Xcode, and `npx expo run:android` needs an Android SDK. The repository does not document those toolchains.
@@ -61,7 +59,7 @@ npm run web
 
 ## Configuration
 
-No environment variables or config files beyond `app.json` are in the repository.
+No environment variable files are in the repository. App config is `app.json`. TypeScript config is `tsconfig.json`. Metro config is `metro.config.js`.
 
 Recognition language is changed in the in-app Settings screen (`src/app/settings.tsx`).
 
@@ -77,6 +75,8 @@ Identifiers and appearance set in `app.json`:
 - Adaptive icon and splash background: `#0B0C10`
 
 Microphone and speech-recognition permission strings are set in the `expo-speech-recognition` and `expo-audio` plugin entries in `app.json`. Background recording and background playback are disabled.
+
+`expo-asset` is a direct dependency because `expo-audio` lists it as a peer dependency. `app.json` includes `expo-asset` in `plugins` with no options.
 
 ## Usage
 
@@ -136,8 +136,6 @@ That script runs `src/domain/*.test.ts`, `src/db/*.test.ts`, and `src/speech/*.t
 ## Contributing
 
 No contributing guide is in the repository.
-
-[TODO: add contribution steps]
 
 ## License
 
