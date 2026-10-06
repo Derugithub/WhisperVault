@@ -9,7 +9,6 @@ export const colors = {
   textSecondary: '#C4BDB2',
   textMuted: '#9A9388',
   brass: '#E0B07A',
-  brassDeep: '#8C6238',
   brassSoft: 'rgba(224, 176, 122, 0.14)',
   danger: '#E58A7B',
   dangerSoft: 'rgba(229, 138, 123, 0.14)',
@@ -17,7 +16,6 @@ export const colors = {
 };
 
 export const space = {
-  xs: 4,
   sm: 8,
   md: 12,
   lg: 16,
