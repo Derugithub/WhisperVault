@@ -34,4 +34,25 @@ describe('planCapture', () => {
       'needs-model',
     );
   });
+
+  it('does not offer recording on a phone when the speech module is missing', () => {
+    assert.equal(
+      planCapture({
+        platform: 'android',
+        recognitionAvailable: false,
+        onDeviceSupported: false,
+        moduleInstalled: false,
+      }),
+      'needs-install',
+    );
+    assert.equal(
+      planCapture({
+        platform: 'ios',
+        recognitionAvailable: false,
+        onDeviceSupported: false,
+        moduleInstalled: false,
+      }),
+      'needs-install',
+    );
+  });
 });

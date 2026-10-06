@@ -1,3 +1,35 @@
+export function missingSpeechModuleMessage(): string {
+  return 'Recording needs the installed WhisperVault build on this phone.';
+}
+
+export function describeCaptureAvailability(
+  route: string,
+  platform: string,
+): { canStart: boolean; phase: 'idle' | 'blocked'; message: string | null; canOpenSettings: boolean } {
+  if (route === 'needs-install') {
+    return {
+      canStart: false,
+      phase: 'blocked',
+      message: missingSpeechModuleMessage(),
+      canOpenSettings: false,
+    };
+  }
+  if (route === 'unavailable') {
+    return {
+      canStart: false,
+      phase: 'blocked',
+      message: unavailableCaptureMessage(platform),
+      canOpenSettings: platform === 'ios' || platform === 'android',
+    };
+  }
+  return {
+    canStart: true,
+    phase: 'idle',
+    message: null,
+    canOpenSettings: false,
+  };
+}
+
 export function unavailableCaptureMessage(platform: string): string {
   if (platform === 'web') {
     return 'This browser cannot take a voice note. Use WhisperVault on iPhone or Android.';

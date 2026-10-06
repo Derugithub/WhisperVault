@@ -1,10 +1,14 @@
-export type CaptureRoute = 'browser' | 'on-device' | 'needs-model' | 'unavailable';
+export type CaptureRoute = 'browser' | 'on-device' | 'needs-model' | 'unavailable' | 'needs-install';
 
 export function planCapture(input: {
   platform: string;
   recognitionAvailable: boolean;
   onDeviceSupported: boolean;
+  moduleInstalled?: boolean;
 }): CaptureRoute {
+  if (input.moduleInstalled === false && (input.platform === 'ios' || input.platform === 'android')) {
+    return 'needs-install';
+  }
   if (input.platform === 'web') {
     return input.recognitionAvailable ? 'browser' : 'unavailable';
   }

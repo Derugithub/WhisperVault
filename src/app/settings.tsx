@@ -8,6 +8,7 @@ import { deleteLocalFile } from '../audio/files';
 import { getNotesRepository } from '../db/client';
 import { localDatabaseMessage } from '../db/messages';
 import { languageLabel } from '../domain/languages';
+import { isSpeechRecognitionInstalled } from '../speech/nativeModule';
 import { downloadOfflineModel } from '../speech/offlineModel';
 import { readRecognitionLanguage, writeRecognitionLanguage } from '../speech/languageSetting';
 import { colors, fonts, space } from '../theme';
@@ -20,6 +21,7 @@ export default function SettingsScreen() {
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const langTicket = useRef(0);
+  const speechInstalled = isSpeechRecognitionInstalled();
 
   const refresh = useCallback(async () => {
     const ticket = langTicket.current;
@@ -123,7 +125,7 @@ export default function SettingsScreen() {
               Transcription uses the operating system’s on-device speech recognizer. WhisperVault does not upload recordings to a cloud speech service.
             </Text>
           )}
-          {Platform.OS === 'android' ? (
+          {Platform.OS === 'android' && speechInstalled ? (
             <Text style={styles.body}>
               On Android, the system may need an offline speech model the first time you use a language. That download is the language pack, not your note.
             </Text>
@@ -133,7 +135,7 @@ export default function SettingsScreen() {
           </Text>
         </View>
 
-        {Platform.OS === 'android' ? (
+        {Platform.OS === 'android' && speechInstalled ? (
           <Pressable
             accessibilityRole="button"
             disabled={busy}

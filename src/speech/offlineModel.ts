@@ -1,7 +1,12 @@
-import { ExpoSpeechRecognitionModule } from 'expo-speech-recognition';
+import { missingSpeechModuleMessage } from '../domain/errors';
+import { getSpeechRecognitionModule } from './nativeModule';
 
 export async function downloadOfflineModel(locale: string): Promise<string> {
-  const result = await ExpoSpeechRecognitionModule.androidTriggerOfflineModelDownload({
+  const speech = getSpeechRecognitionModule();
+  if (!speech) {
+    return missingSpeechModuleMessage();
+  }
+  const result = await speech.androidTriggerOfflineModelDownload({
     locale,
   });
   switch (result.status) {

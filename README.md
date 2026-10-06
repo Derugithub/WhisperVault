@@ -4,7 +4,7 @@ WhisperVault is a local-first voice journal for iOS and Android. You record a no
 
 ## Overview
 
-The app targets a person who wants voice notes and transcripts that stay on the device. Speech recognition uses a native module, so Expo Go cannot run this app. Build a development client with the commands in Installation.
+The app targets a person who wants voice notes and transcripts that stay on the device. Expo Go can open the journal, search, and settings. Recording on a phone needs the installed app from `npx expo run:android` or `npx expo run:ios` in Installation. Expo Go does not include that speech recognizer.
 
 Repository: https://github.com/Derugithub/WhisperVault
 
@@ -36,7 +36,7 @@ Each note row has:
 
 - npm, as used by the install and script commands in `package.json`.
 - Expo SDK `~57.0.26` (`expo` in `package.json`).
-- A development build. Expo Go is not supported.
+- Expo Go for the note list, search, and settings. Recording on iOS or Android needs a development build from the Installation commands.
 - iOS and Android targets declared in `app.json`: bundle identifier and Android package `com.whispervault.app`.
 - Assumption: `npx expo run:ios` needs Xcode, and `npx expo run:android` needs an Android SDK. The repository does not document those toolchains.
 
@@ -57,7 +57,7 @@ npm start
 npm run web
 ```
 
-`npm start` runs `expo start`. `npm run web` runs `expo start --web`. Speech recognition still depends on the native module, so web is not a supported path for recording.
+`npm start` runs `expo start`. Opening that project in Expo Go shows the journal, search, and settings. Recording on a phone uses `npx expo run:android` or `npx expo run:ios`. `npm run web` runs `expo start --web`.
 
 ## Configuration
 

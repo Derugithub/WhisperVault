@@ -20,11 +20,16 @@ declare module 'node:path' {
   export function join(...paths: string[]): string;
 }
 
+declare module 'node:module' {
+  export function createRequire(filename: string | URL): (id: string) => { ExpoSpeechRecognitionModule?: unknown };
+}
+
 declare module 'node:test' {
   export function describe(name: string, fn: () => void): void;
   export function it(name: string, fn: () => void | Promise<void>): void;
   export function before(fn: () => void | Promise<void>): void;
   export function after(fn: () => void): void;
+  export function afterEach(fn: () => void): void;
 }
 
 declare module 'node:sqlite' {

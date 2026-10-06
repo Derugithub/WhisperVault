@@ -1,13 +1,23 @@
-import { ExpoSpeechRecognitionModule } from 'expo-speech-recognition';
 import { Platform } from 'react-native';
+import { getSpeechRecognitionModule } from './nativeModule';
 import { planCapture, type CaptureRoute } from './plan';
 
 export function readCaptureRoute(): CaptureRoute {
+  const speech = getSpeechRecognitionModule();
+  if (!speech) {
+    return planCapture({
+      platform: Platform.OS,
+      recognitionAvailable: false,
+      onDeviceSupported: false,
+      moduleInstalled: false,
+    });
+  }
+
   let recognitionAvailable = false;
   let onDeviceSupported = false;
   try {
-    recognitionAvailable = ExpoSpeechRecognitionModule.isRecognitionAvailable();
-    onDeviceSupported = ExpoSpeechRecognitionModule.supportsOnDeviceRecognition();
+    recognitionAvailable = speech.isRecognitionAvailable();
+    onDeviceSupported = speech.supportsOnDeviceRecognition();
   } catch {
     recognitionAvailable = false;
     onDeviceSupported = false;
@@ -16,5 +26,6 @@ export function readCaptureRoute(): CaptureRoute {
     platform: Platform.OS,
     recognitionAvailable,
     onDeviceSupported,
+    moduleInstalled: true,
   });
 }
