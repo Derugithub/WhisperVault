@@ -4,9 +4,11 @@ import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LanguagePicker } from '../components/LanguagePicker';
 import { Screen } from '../components/Screen';
+import { useClearingNotice } from '../components/useClearingNotice';
 import { localDatabaseMessage } from '../db/messages';
 import { formatElapsed } from '../domain/format';
 import { languageLabel } from '../domain/languages';
+import { FAILED_DOWNLOAD_MESSAGE } from '../speech/downloadNotice';
 import { downloadOfflineModel } from '../speech/offlineModel';
 import { readRecognitionLanguage, writeRecognitionLanguage } from '../speech/languageSetting';
 import { useVoiceCapture } from '../speech/useVoiceCapture';
@@ -18,7 +20,7 @@ export default function RecordScreen() {
   const capture = useVoiceCapture();
   const [lang, setLang] = useState('en-US');
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [modelMessage, setModelMessage] = useState<string | null>(null);
+  const [modelMessage, setModelMessage] = useClearingNotice();
   const [downloading, setDownloading] = useState(false);
   const left = useRef(false);
   const closing = useRef(false);
@@ -98,8 +100,8 @@ export default function RecordScreen() {
     setDownloading(true);
     try {
       setModelMessage(await downloadOfflineModel(lang));
-    } catch (error) {
-      setModelMessage(error instanceof Error ? error.message : 'The offline model could not be downloaded.');
+    } catch {
+      setModelMessage(FAILED_DOWNLOAD_MESSAGE);
     } finally {
       setDownloading(false);
     }
