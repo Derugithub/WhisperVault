@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "whispervault",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.whispervault.app"
@@ -65,7 +64,8 @@
         }
       ],
       "expo-sqlite",
-      "expo-localization"
+      "expo-localization",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
