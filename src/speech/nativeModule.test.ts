@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { afterEach, describe, it } from 'node:test';
-import { getSpeechRecognitionModule, setSpeechModuleLoaderForTests } from './nativeModule.ts';
+import {
+  getSpeechRecognitionModule,
+  offlineModelDownloadSupported,
+  setSpeechModuleLoaderForTests,
+} from './nativeModule.ts';
 
 const require = createRequire(import.meta.url);
 
@@ -33,5 +37,24 @@ describe('speech module loader', () => {
   it('catches a missing ExpoSpeechRecognition module from the package itself', () => {
     setSpeechModuleLoaderForTests(() => require('expo-speech-recognition').ExpoSpeechRecognitionModule);
     assert.equal(getSpeechRecognitionModule(), null);
+  });
+
+  it('reports offline download support only when the module exposes that API', () => {
+    const installed = {
+      start() {},
+      stop() {},
+      abort() {},
+      addListener() {
+        return { remove() {} };
+      },
+    };
+    setSpeechModuleLoaderForTests(() => installed);
+    assert.equal(offlineModelDownloadSupported(), false);
+
+    setSpeechModuleLoaderForTests(() => ({
+      ...installed,
+      androidTriggerOfflineModelDownload: async () => ({ status: 'download_success' }),
+    }));
+    assert.equal(offlineModelDownloadSupported(), true);
   });
 });

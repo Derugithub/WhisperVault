@@ -69,6 +69,11 @@ export function isSpeechRecognitionInstalled(): boolean {
   return getSpeechRecognitionModule() != null;
 }
 
+export function offlineModelDownloadSupported(): boolean {
+  const speech = getSpeechRecognitionModule();
+  return typeof speech?.androidTriggerOfflineModelDownload === 'function';
+}
+
 export function setSpeechModuleLoaderForTests(next: SpeechModuleLoader | null): void {
   loader = next ?? defaultLoadSpeechModule;
   cached = undefined;

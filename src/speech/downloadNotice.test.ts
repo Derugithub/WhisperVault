@@ -6,6 +6,7 @@ import {
   failedDownloadDismissDelay,
   messageForOfflineModelOutcome,
   messageForOfflineModelStatus,
+  shouldShowOfflineModelDownload,
 } from './downloadNotice.ts';
 
 describe('offline model download copy', () => {
@@ -31,5 +32,22 @@ describe('offline model download copy', () => {
     const message = messageForOfflineModelOutcome(null);
     assert.equal(message, 'Failed to download');
     assert.doesNotMatch(message, /error|\d/);
+  });
+});
+
+describe('offline model download button', () => {
+  it('shows on Android when the speech module can download a model', () => {
+    assert.equal(shouldShowOfflineModelDownload('android', true), true);
+  });
+
+  it('keeps showing on Android after a failed download', () => {
+    assert.equal(messageForOfflineModelOutcome(null), 'Failed to download');
+    assert.equal(shouldShowOfflineModelDownload('android', true), true);
+  });
+
+  it('hides only where the download API does not exist', () => {
+    assert.equal(shouldShowOfflineModelDownload('web', true), false);
+    assert.equal(shouldShowOfflineModelDownload('ios', true), false);
+    assert.equal(shouldShowOfflineModelDownload('android', false), false);
   });
 });

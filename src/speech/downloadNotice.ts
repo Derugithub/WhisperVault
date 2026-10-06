@@ -27,3 +27,7 @@ export function messageForOfflineModelOutcome(status: string | null): string {
   }
   return messageForOfflineModelStatus(status);
 }
+
+export function shouldShowOfflineModelDownload(platform: string, downloadSupported: boolean): boolean {
+  return platform === 'android' && downloadSupported;
+}
