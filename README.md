@@ -72,7 +72,7 @@ Identifiers and appearance set in `app.json`:
 - `userInterfaceStyle`: `dark`
 - iOS `bundleIdentifier`: `com.whispervault.app`
 - Android `package`: `com.whispervault.app`
-- Adaptive icon and splash background: `#0B0C10`
+- Adaptive icon and splash background: `#FFFFFF`
 
 Microphone and speech-recognition permission strings are set in the `expo-speech-recognition` and `expo-audio` plugin entries in `app.json`. Background recording and background playback are disabled.
 
